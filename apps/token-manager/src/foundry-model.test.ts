@@ -77,4 +77,36 @@ describe("Foundry model editing", () => {
     );
     warn.mockRestore();
   });
+
+  it("reports no change for the same normalized model", async () => {
+    const { store } = makeStore();
+    await expect(buildFoundryModelSecret(token, " old-model ", store)).resolves.toBeUndefined();
+    expect(store.getSecret).toHaveBeenCalledWith(token.secretName, { bypassCache: true });
+    expect(store.setSecret).not.toHaveBeenCalled();
+  });
+
+  it("clears an override while preserving the credential", async () => {
+    const { store } = makeStore();
+    const value = await buildFoundryModelSecret(token, null, store);
+    expect(JSON.parse(value!)).toEqual({
+      endpoint: "https://example.services.ai.azure.com/models",
+      apiKey: "secret-api-key",
+    });
+  });
+
+  it.each([null, "", "   "])("does not rewrite an already absent override: %j", async (model) => {
+    const { store } = makeStore();
+    vi.mocked(store.getSecret).mockResolvedValue(JSON.stringify({
+      endpoint: "https://example.services.ai.azure.com/models",
+      apiKey: "secret-api-key",
+    }));
+    await expect(buildFoundryModelSecret(token, model, store)).resolves.toBeUndefined();
+  });
+
+  it("distinguishes an invalid credential from an unchanged model", async () => {
+    const { store } = makeStore();
+    vi.mocked(store.getSecret).mockResolvedValue("invalid-json");
+    await expect(buildFoundryModelSecret(token, "old-model", store)).resolves.toBeNull();
+  });
+
 });

@@ -37,4 +37,32 @@ describe("buildKeyUpdateRequest", () => {
       comment: null,
     });
   });
+
+  it.each([
+    { currentModel: "gpt-4.1", foundryModel: " gpt-4.1 " },
+    { currentModel: undefined, foundryModel: "" },
+    { currentModel: undefined, foundryModel: "   " },
+  ])("omits an unchanged model on metadata edits: %j", (model) => {
+    const body = buildKeyUpdateRequest({
+      type: "azure-ai-foundry",
+      enabled: false,
+      expiresAt: "",
+      comment: " updated comment ",
+      ...model,
+    });
+    expect(body).toEqual({ enabled: false, expiresAt: null, comment: "updated comment" });
+    expect(body).not.toHaveProperty("model");
+  });
+
+  it("sends null only when an existing model is explicitly cleared", () => {
+    expect(buildKeyUpdateRequest({
+      type: "azure-ai-foundry",
+      enabled: true,
+      expiresAt: "",
+      comment: "",
+      currentModel: "gpt-4.1",
+      foundryModel: "   ",
+    })).toMatchObject({ model: null });
+  });
+
 });

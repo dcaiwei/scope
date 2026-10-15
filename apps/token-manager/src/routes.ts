@@ -244,20 +244,22 @@ export function createKeyRouter(
           body.model,
           store
         );
-        if (!updatedFoundrySecret) {
+        if (updatedFoundrySecret === null) {
           res.status(422).json({ error: "Stored Azure AI Foundry key is invalid" });
           return;
         }
         foundrySecretValue = updatedFoundrySecret;
 
-        // The deployment is part of validation, so the previous result is stale.
-        update.lastValidationStatus = "unknown";
-        update.lastValidatedAt = null;
-        update.lastValidationError = null;
+        if (foundrySecretValue !== undefined) {
+          // Metadata-only edits must not invalidate an in-flight validation.
+          update.validationRevision = uuidv4();
+          update.lastValidationStatus = "unknown";
+          update.lastValidatedAt = null;
+          update.lastValidationError = null;
+        }
       }
 
-      const updateRevision = new Date();
-      update.updatedAt = updateRevision;
+      update.updatedAt = new Date();
       const result = await collection.findOneAndUpdate(
         { _id: req.params.id, deletedAt: { $exists: false } },
         { $set: update },
@@ -274,11 +276,19 @@ export function createKeyRouter(
         // secret write fails, the key cannot remain valid with stale capabilities.
         await store.setSecret(result.secretName, foundrySecretValue);
 
-        validateToken(result.type, foundrySecretValue)
+        // Read back the stored value: overlapping cross-store writes can finish
+        // in a different order from the metadata updates. This is not a
+        // transaction; a later write may still require another validation.
+        store.getSecret(result.secretName, { bypassCache: true })
+          .then((value) => validateToken(result.type, value))
           .then(async (validation) => {
             const now = new Date();
             await collection.updateOne(
-              { _id: result._id, updatedAt: updateRevision },
+              {
+                _id: result._id,
+                validationRevision: result.validationRevision,
+                deletedAt: { $exists: false },
+              },
               {
                 $set: {
                   lastValidatedAt: now,

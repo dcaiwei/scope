@@ -102,6 +102,7 @@ export function TokenDetail() {
       expiresAt,
       comment,
       foundryModel,
+      currentModel: token.model,
     }));
   };
 
@@ -357,7 +358,7 @@ export function TokenDetail() {
                       placeholder="e.g. gpt-4.1-mini"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Clear this field to use the default model.
+                      Clear to use the configured default model.
                     </p>
                   </>
                 ) : (

@@ -28,20 +28,23 @@ export async function withFoundryModel(
   }
 }
 
-/** Build a new secret value without writing it, preserving the credential. */
+/** Build a secret, returning undefined for no change or null for invalid data. */
 export async function buildFoundryModelSecret(
   token: KeyDocument,
   model: string | null,
   store: SecretStore
-): Promise<string | null> {
+): Promise<string | null | undefined> {
   const parsed = parseAzureAiFoundrySecret(
-    await store.getSecret(token.secretName)
+    await store.getSecret(token.secretName, { bypassCache: true })
   );
   if (!parsed) return null;
 
+  const nextModel = model?.trim() || undefined;
+  if (nextModel === parsed.model) return undefined;
+
   const value = JSON.stringify({
     ...parsed,
-    model: model?.trim() || undefined,
+    model: nextModel,
   });
   return value;
 }

@@ -54,6 +54,8 @@ export interface KeyDocument {
   lastAcquiredAt?: Date;
   createdAt: Date;
   updatedAt?: Date;
+  /** Changes only when the credential changes, independent of metadata edits. */
+  validationRevision?: string;
   deletedAt?: Date;
   /**
    * Azure AI Foundry deployment / model name. This non-secret field is
